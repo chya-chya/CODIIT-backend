@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:latest
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=codiit
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:             # 여기 추가!
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-codiit}"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3001"
+      - "5555:5555"
+    volumes:
+      - .:/app            
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/codiit?connection_limit=150&pool_timeout=2
+      - PORT=3001
+      - BASE_URL=http://localhost:3001
+      - PUBLIC_PATH=/app/public
+      - STATIC_PATH=/public
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
+      - AWS_REGION=${AWS_REGION}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+      - REFRESH_EXPIRES_DAYS=${REFRESH_EXPIRES_DAYS}
+
+    depends_on:
+      db:
+        condition: service_healthy
+    command: npm run start:dev   # 🔥 nodemon 기반 자동 리로드
+volumes:
+  postgres_data:
