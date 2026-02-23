@@ -1,3 +1,6 @@
+import otelSDK from './tracing';
+otelSDK.start();
+
 import cookieParser from 'cookie-parser';
 import * as express from 'express';
 import { resolve } from 'path';

@@ -38,10 +38,24 @@ services:
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
       - REFRESH_EXPIRES_DAYS=${REFRESH_EXPIRES_DAYS}
+      - OTEL_SERVICE_NAME=codiit-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
 
     depends_on:
       db:
         condition: service_healthy
-    command: npm run start:dev   # 🔥 nodemon 기반 자동 리로드
+      jaeger:
+        condition: service_started
+    command: npm run start:dev
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686" # UI
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+
 volumes:
   postgres_data:

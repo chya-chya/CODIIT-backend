@@ -9,7 +9,10 @@ export class FindProductsQueryDto {
   @Type(() => Number)
   page?: number;
 
-  @ApiPropertyOptional({ description: '페이지 크기 (기본값: 10)' })
+  @ApiPropertyOptional({
+    description: '페이지 리스트 갯수 (기본값: 16)',
+    example: 16,
+  })
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
@@ -68,6 +71,6 @@ export class FindProductsQueryDto {
   }
 
   get take(): number {
-    return this.pageSize ?? 10;
+    return this.pageSize ?? 16;
   }
 }

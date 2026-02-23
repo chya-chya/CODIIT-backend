@@ -157,7 +157,10 @@ export class ProductsService {
   }
 
   /** ✅ 상품 등록 */
-  async create(dto: CreateProductDto, sellerId: string): Promise<Product> {
+  async create(
+    dto: CreateProductDto,
+    sellerId: string,
+  ): Promise<ProductResponse> {
     try {
       const { price, discountRate, categoryName, categoryId } = dto;
 
@@ -206,7 +209,7 @@ export class ProductsService {
       const stocks = dto.stocks ? await this.transformStocks(dto.stocks) : [];
 
       // ✅ DB 저장
-      return await this.productsRepository.create({
+      const product = await this.productsRepository.create({
         name: dto.name,
         content: dto.content,
         image: dto.image,
@@ -219,6 +222,8 @@ export class ProductsService {
         categoryId: resolvedCategoryId,
         stocks,
       });
+
+      return this.findOne(product.id);
     } catch (err: unknown) {
       if (
         err instanceof NotFoundException ||
@@ -237,7 +242,8 @@ export class ProductsService {
 
   /** ✅ 상품 목록 조회 */
   async findAll(query: FindProductsQueryDto): Promise<ProductListResponse> {
-    const products = await this.productsRepository.findAll(query);
+    const { list: products, totalCount } =
+      await this.productsRepository.findAll(query);
 
     const list = products.map((product) => {
       const reviewsRating =
@@ -270,7 +276,7 @@ export class ProductsService {
       list.sort((a, b) => b.reviewsRating - a.reviewsRating);
     }
 
-    return { list, totalCount: list.length };
+    return { list, totalCount };
   }
 
   /** 상품 상세 조회 */
@@ -332,7 +338,7 @@ export class ProductsService {
     productId: string,
     dto: UpdateProductDto,
     sellerId: string,
-  ): Promise<Product> {
+  ): Promise<ProductResponse> {
     try {
       const product = await this.productsRepository.findOne(productId);
       if (!product) throw new NotFoundException('상품을 찾을 수 없습니다.');
@@ -379,8 +385,8 @@ export class ProductsService {
         resolvedCategoryId = category.id;
       }
 
-      // ✅ Prisma에 넘기기 전 categoryName 제거
-      const { price, discountRate, stocks, ...restDto } = dto;
+      // ✅ Prisma에 넘기기 전 categoryName, isSoldOut 제거
+      const { price, discountRate, stocks, isSoldOut, ...restDto } = dto;
 
       // restDto를 Record<string, unknown>으로 선언해 안전하게 캐스팅
       const safeRestDto: Record<string, unknown> = { ...restDto };
@@ -395,7 +401,7 @@ export class ProductsService {
           : (price ?? product.price);
 
       // ✅ 최종 업데이트
-      return await this.productsRepository.update(productId, {
+      await this.productsRepository.update(productId, {
         ...safeRestDto,
         price,
         discountRate,
@@ -403,6 +409,22 @@ export class ProductsService {
         ...(resolvedCategoryId && { categoryId: resolvedCategoryId }),
         ...(stocks && { stocks: await this.transformStocks(stocks) }),
       });
+
+      // ✅ isSoldOut이 true인 경우 모든 재고를 0으로 설정
+      if (isSoldOut === true) {
+        const currentProduct = await this.productsRepository.findOne(productId);
+        if (currentProduct && currentProduct.stocks) {
+          const zeroStocks = currentProduct.stocks.map((s) => ({
+            sizeId: s.sizeId,
+            quantity: 0,
+          }));
+          await this.productsRepository.update(productId, {
+            stocks: zeroStocks,
+          });
+        }
+      }
+
+      return this.findOne(productId);
     } catch (err: unknown) {
       if (
         err instanceof NotFoundException ||

@@ -5,8 +5,9 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "linux-musl-arm64-openssl-3.0.x"]
+  previewFeatures = ["tracing"]
 }
 
 datasource db {
@@ -190,6 +191,14 @@ model Product {
   cartItems    CartItem[]
   orderItems   OrderItem[]
   Notification Notification[]
+
+  @@index([price])
+  @@index([createdAt(sort: Desc)])
+  @@index([sales(sort: Desc)])
+  @@index([categoryId, createdAt(sort: Desc)])
+  @@index([categoryId, price])
+  @@index([categoryId, sales(sort: Desc)])
+  @@index([storeId, createdAt(sort: Desc)])
 }
 
 model Category {
@@ -352,6 +361,8 @@ model Review {
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
 }
 
 /**

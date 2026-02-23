@@ -5,6 +5,7 @@ import {
   IsArray,
   ValidateNested,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { PartialType, OmitType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -26,6 +27,14 @@ export class UpdateStockDto {
 export class UpdateProductDto extends PartialType(
   OmitType(CreateProductDto, ['stocks'] as const),
 ) {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isSoldOut?: boolean;
+
   @IsOptional()
   @IsEnum(CategoryType)
   categoryName?: CategoryType;

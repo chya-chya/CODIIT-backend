@@ -119,15 +119,41 @@ export class ProductsRepository {
   }
 
   /** ✅ 상품 목록 조회 */
-  async findAll(query: FindProductsQueryDto): Promise<ProductWithRelations[]> {
+  async findAll(query: FindProductsQueryDto): Promise<{
+    list: ProductWithRelations[];
+    totalCount: number;
+  }> {
     const where: Prisma.ProductWhereInput = {};
     let orderBy: Prisma.ProductOrderByWithRelationInput | undefined;
 
     if (query.categoryName) where.category = { name: query.categoryName };
-    if (query.search) where.name = { contains: query.search };
-    if (query.priceMin) where.price = { gte: query.priceMin };
-    if (query.priceMax) where.price = { lte: query.priceMax };
-    if (query.size) where.stocks = { some: { size: { name: query.size } } };
+    if (query.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { content: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+    if (query.priceMin || query.priceMax) {
+      where.price = {
+        ...(query.priceMin !== undefined && { gte: query.priceMin }),
+        ...(query.priceMax !== undefined && { lte: query.priceMax }),
+      };
+    }
+    if (query.size) {
+      where.stocks = {
+        some: {
+          size: {
+            name: {
+              equals: query.size,
+              mode: 'insensitive',
+            },
+          },
+        },
+      };
+    }
+    if (query.favoriteStore) {
+      where.storeId = query.favoriteStore;
+    }
 
     switch (query.sort) {
       case 'mostReviewed':
@@ -150,23 +176,29 @@ export class ProductsRepository {
         break;
     }
 
-    const products = await this.prisma.product.findMany({
-      where,
-      skip: query.skip,
-      take: query.take,
-      include: {
-        store: { select: { name: true } },
-        reviews: { select: { rating: true } },
-        stocks: { include: { size: true } },
-      },
-      orderBy,
-    });
+    const [products, totalCount] = await this.prisma.$transaction([
+      this.prisma.product.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        include: {
+          store: { select: { name: true } },
+          reviews: { select: { rating: true } },
+          stocks: { include: { size: true } },
+        },
+        orderBy,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
 
-    return products.map((p) => ({
-      ...p,
-      discountRate: p.discountRate ?? 0,
-      discountPrice: p.discountPrice ?? p.price,
-    }));
+    return {
+      list: products.map((p) => ({
+        ...p,
+        discountRate: p.discountRate ?? 0,
+        discountPrice: p.discountPrice ?? p.price,
+      })),
+      totalCount,
+    };
   }
 
   /** ✅ 상세 조회 (nullable) */

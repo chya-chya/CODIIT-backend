@@ -23,7 +23,7 @@ import { CreateProductDto, CreateStockDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { FindProductsQueryDto } from './dto/find-products-query.dto';
 import { CreateInquiryDto } from './dto/create-inquiry.dto';
-import { Product, Inquiry } from '@prisma/client';
+import { Inquiry } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import type { RequestWithUser } from '../auth/auth.types';
 import type {
@@ -80,7 +80,7 @@ export class ProductsController {
     @UploadedFile() file: Express.Multer.File,
     @Body() body: Record<string, unknown>,
     @Req() req: RequestWithUser,
-  ): Promise<Product> {
+  ): Promise<ProductResponse> {
     const sellerId = req.user.userId;
 
     // ✅ DTO 변환
@@ -121,7 +121,7 @@ export class ProductsController {
       }
     }
 
-    return this.productsService.create(dto, sellerId);
+    return await this.productsService.create(dto, sellerId);
   }
 
   /** ✅ 상품 목록 조회 */
@@ -129,13 +129,13 @@ export class ProductsController {
   async findAll(
     @Query() query: FindProductsQueryDto,
   ): Promise<ProductListResponse> {
-    return this.productsService.findAll(query);
+    return await this.productsService.findAll(query);
   }
 
   /** ✅ 상품 상세 조회 */
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<ProductResponse> {
-    return this.productsService.findOne(id);
+    return await this.productsService.findOne(id);
   }
 
   /** ✅ 상품 수정 (FormData 대응 + 이미지 업로드 포함) */
@@ -177,7 +177,7 @@ export class ProductsController {
     @UploadedFile() file: Express.Multer.File,
     @Body() body: Record<string, unknown>,
     @Req() req: RequestWithUser,
-  ): Promise<Product> {
+  ): Promise<ProductResponse> {
     const sellerId = req.user.userId;
 
     // ✅ DTO 변환
@@ -208,6 +208,8 @@ export class ProductsController {
                 body.discountEndTime as string | number | Date,
               ).toISOString()
             : undefined,
+      isSoldOut:
+        body.isSoldOut === 'true' || body.isSoldOut === true ? true : undefined,
     } as unknown as UpdateProductDto;
 
     // ✅ 이미지 업로드 (S3 or 기존 유지)
@@ -237,7 +239,7 @@ export class ProductsController {
       }
     }
 
-    return this.productsService.update(id, dto, sellerId);
+    return await this.productsService.update(id, dto, sellerId);
   }
 
   /** ✅ 상품 삭제 */
@@ -248,7 +250,7 @@ export class ProductsController {
     @Param('id') id: string,
     @Req() req: RequestWithUser,
   ): Promise<void> {
-    return this.productsService.remove(id, req.user.userId);
+    return await this.productsService.remove(id, req.user.userId);
   }
 
   /** ✅ 상품 문의 등록 */
@@ -259,7 +261,7 @@ export class ProductsController {
     @Body() dto: CreateInquiryDto,
     @Req() req: RequestWithUser,
   ): Promise<Inquiry> {
-    return this.productsService.createInquiry(productId, dto, req.user.userId);
+    return await this.productsService.createInquiry(productId, dto, req.user.userId);
   }
 
   /** ✅ 상품 문의 조회 */
@@ -269,6 +271,6 @@ export class ProductsController {
     @Param('id') productId: string,
     @Req() req: RequestWithUser,
   ): Promise<InquiryResponse> {
-    return this.productsService.findInquiries(productId, req.user.userId);
+    return await this.productsService.findInquiries(productId, req.user.userId);
   }
 }

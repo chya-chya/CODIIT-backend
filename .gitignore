@@ -70,3 +70,5 @@ prisma/*.db-journal
 
 # Debug
 *.tgz
+
+/worklog
