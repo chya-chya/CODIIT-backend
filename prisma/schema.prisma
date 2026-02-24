@@ -179,6 +179,8 @@ model Product {
   discountStartTime DateTime?
   discountEndTime   DateTime?
   sales             Int       @default(0)
+  reviewCount       Int       @default(0)
+  avgRating         Float     @default(0)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -195,9 +197,13 @@ model Product {
   @@index([price])
   @@index([createdAt(sort: Desc)])
   @@index([sales(sort: Desc)])
+  @@index([reviewCount(sort: Desc)])
+  @@index([avgRating(sort: Desc)])
   @@index([categoryId, createdAt(sort: Desc)])
   @@index([categoryId, price])
   @@index([categoryId, sales(sort: Desc)])
+  @@index([categoryId, reviewCount(sort: Desc)])
+  @@index([categoryId, avgRating(sort: Desc)])
   @@index([storeId, createdAt(sort: Desc)])
 }
 

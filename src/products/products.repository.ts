@@ -157,7 +157,7 @@ export class ProductsRepository {
 
     switch (query.sort) {
       case 'mostReviewed':
-        orderBy = { reviews: { _count: 'desc' } };
+        orderBy = { reviewCount: 'desc' };
         break;
       case 'highPrice':
         orderBy = { price: 'desc' };
@@ -172,7 +172,7 @@ export class ProductsRepository {
         orderBy = { sales: 'desc' };
         break;
       case 'highRating':
-        orderBy = { reviews: { _count: 'desc' } };
+        orderBy = { avgRating: 'desc' };
         break;
     }
 
@@ -326,5 +326,27 @@ export class ProductsRepository {
     });
 
     return { list, totalCount: list.length };
+  }
+
+  /** ✅ 상품 리뷰 통계 업데이트 (반정규화 필드 갱신) */
+  async updateProductReviewStats(productId: string) {
+    const reviews = await this.prisma.review.findMany({
+      where: { productId },
+      select: { rating: true },
+    });
+
+    const reviewCount = reviews.length;
+    const avgRating =
+      reviewCount > 0
+        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+        : 0;
+
+    return this.prisma.product.update({
+      where: { id: productId },
+      data: {
+        reviewCount,
+        avgRating,
+      },
+    });
   }
 }

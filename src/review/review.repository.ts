@@ -96,6 +96,7 @@ export class ReviewRepository {
         rating: true,
         content: true,
         userId: true,
+        productId: true,
         createdAt: true,
       },
     });
@@ -124,7 +125,7 @@ export class ReviewRepository {
   deleteReview(reviewId: string) {
     return this.prisma.review.delete({
       where: { id: reviewId },
-      select: { id: true, content: true },
+      select: { id: true, content: true, productId: true },
     });
   }
 }
