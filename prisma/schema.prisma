@@ -195,6 +195,8 @@ model Product {
   Notification Notification[]
 
   @@index([price])
+  @@index([discountPrice])
+  @@index([categoryId, discountPrice])
   @@index([createdAt(sort: Desc)])
   @@index([sales(sort: Desc)])
   @@index([reviewCount(sort: Desc)])
@@ -231,6 +233,9 @@ model Stock {
   quantity  Int
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([sizeId, productId])
 }
 
 model StockSize {
@@ -239,6 +244,8 @@ model StockSize {
 
   stocks    Stock[]
   cartItems CartItem[]
+
+  @@index([name])
 }
 
 /**

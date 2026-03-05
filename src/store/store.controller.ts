@@ -34,7 +34,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateStoreResponseDto } from './dto/create-store-response.dto';
 import { S3Service } from '../s3/s3.service';
-import { imageFileFilter } from 'src/s3/s3.controller';
+import { imageFileFilter } from '../s3/s3.controller';
 import { UpdateStoreFormDto } from './dto/update-store-form.dto';
 import { memoryStorage } from 'multer';
 

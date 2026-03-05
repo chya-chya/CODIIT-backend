@@ -20,11 +20,10 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "src/*": ["src/*"]
+    }
   },
-  "include": ["src/**/*.ts", "prisma/**/*.ts", "test/**/*.ts"],
-  "noFallthroughCasesInSwitch": false,
-  "paths": {
-    "src/*": ["src/*"]
-  }
+  "include": ["prisma/**/*.ts", "src/**/*.ts", "test/**/*.ts"]
 }

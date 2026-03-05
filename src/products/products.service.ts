@@ -96,9 +96,14 @@ export type InquiryResponse = {
   totalCount: number;
 };
 
+import { SearchService } from '../search/search.service';
+
 @Injectable()
 export class ProductsService {
-  constructor(private readonly productsRepository: ProductsRepository) {}
+  constructor(
+    private readonly productsRepository: ProductsRepository,
+    private readonly searchService: SearchService,
+  ) {}
 
   /** 🔧 stocks 변환 (프론트 숫자 사이즈 대응 버전) */
   private async transformStocks(
@@ -164,7 +169,6 @@ export class ProductsService {
     try {
       const { price, discountRate, categoryName, categoryId } = dto;
 
-      // ✅ 스토어 확인
       const store = await this.productsRepository.findStoreBySellerId(sellerId);
       if (!store) throw new NotFoundException('스토어를 찾을 수 없습니다.');
 
@@ -199,7 +203,7 @@ export class ProductsService {
         throw new NotFoundException('카테고리 정보가 없습니다.');
       }
 
-      // ✅ 할인 가격 계산 (기본값 포함)
+      // ✅ 할인 가격 계산 (할인이 없으면 정가와 동일하게 저장하여 필터링 일관성 보장)
       const discountPrice =
         discountRate !== undefined && discountRate > 0
           ? Math.floor(price * (1 - discountRate / 100))
@@ -214,8 +218,8 @@ export class ProductsService {
         content: dto.content,
         image: dto.image,
         price: dto.price,
-        discountRate: dto.discountRate ?? 0,
         discountPrice,
+        discountRate: dto.discountRate ?? 0,
         discountStartTime: dto.discountStartTime,
         discountEndTime: dto.discountEndTime,
         storeId: store.id,
@@ -223,7 +227,14 @@ export class ProductsService {
         stocks,
       });
 
-      return this.findOne(product.id);
+      const fullProduct = await this.findOne(product.id);
+      
+      // 🚀 Elasticsearch 동기화 (Background)
+      this.searchService.indexProduct(fullProduct).catch(err => 
+        console.error('ES Sync Error on Create:', err)
+      );
+
+      return fullProduct;
     } catch (err: unknown) {
       if (
         err instanceof NotFoundException ||
@@ -246,16 +257,23 @@ export class ProductsService {
       await this.productsRepository.findAll(query);
 
     const list = products.map((product) => {
-      const reviewsRating =
-        product.reviews.length > 0
-          ? product.reviews.reduce((sum, r) => sum + r.rating, 0) /
-            product.reviews.length
-          : 0;
+      // ES 결과(집계값 존재)와 Prisma 결과(reviews 배열 존재) 모두 대응
+      const reviewsRating = 
+        product.avgRating !== undefined 
+          ? product.avgRating 
+          : (product.reviews?.length > 0
+            ? product.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / product.reviews.length
+            : 0);
+
+      const reviewsCount = 
+        product.reviewCount !== undefined 
+          ? product.reviewCount 
+          : (product.reviews?.length ?? 0);
 
       return {
         id: product.id,
         storeId: product.storeId,
-        storeName: product.store?.name,
+        storeName: product.storeName || product.store?.name,
         name: product.name,
         image: product.image,
         content: product.content,
@@ -264,12 +282,12 @@ export class ProductsService {
         discountRate: product.discountRate ?? 0,
         discountStartTime: product.discountStartTime,
         discountEndTime: product.discountEndTime,
-        reviewsCount: product.reviews.length,
+        reviewsCount,
         reviewsRating,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
         sales: product.sales,
-        isSoldOut: !product.stocks?.some((s) => s.quantity > 0),
+        isSoldOut: !product.stocks?.some((s: any) => s.quantity > 0),
       };
     });
     if (query.sort === 'highRating') {
@@ -394,7 +412,7 @@ export class ProductsService {
       // 타입 안전하게 삭제
       delete safeRestDto.categoryName;
 
-      // ✅ 할인 계산
+      // ✅ 할인 계산 (할인이 없으면 정가와 동일하게 저장하여 필터링 일관성 보장)
       const discountPrice =
         discountRate !== undefined && discountRate > 0
           ? Math.floor((price ?? product.price) * (1 - discountRate / 100))
@@ -424,7 +442,14 @@ export class ProductsService {
         }
       }
 
-      return this.findOne(productId);
+      const updatedProduct = await this.findOne(productId);
+
+      // 🚀 Elasticsearch 동기화 (Background)
+      this.searchService.indexProduct(updatedProduct).catch(err => 
+        console.error('ES Sync Error on Update:', err)
+      );
+
+      return updatedProduct;
     } catch (err: unknown) {
       if (
         err instanceof NotFoundException ||
@@ -452,6 +477,11 @@ export class ProductsService {
     }
 
     await this.productsRepository.removeWithRelations(productId);
+
+    // 🚀 Elasticsearch 동기화 (Background)
+    this.searchService.removeProduct(productId).catch(err => 
+      console.error('ES Sync Error on Remove:', err)
+    );
   }
 
   /** ✅ 상품 문의 등록 */
