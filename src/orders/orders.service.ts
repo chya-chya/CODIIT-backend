@@ -21,6 +21,7 @@ import {
   User,
 } from '@prisma/client';
 import { PointsService } from '../points/points.service';
+import { KafkaProducerService } from '../common/kafka/kafka.service';
 
 @Injectable()
 export class OrdersService {
@@ -29,6 +30,7 @@ export class OrdersService {
   constructor(
     private readonly ordersRepository: OrdersRepository,
     private readonly pointsService: PointsService,
+    private readonly kafkaProducerService: KafkaProducerService,
   ) {}
 
   /**
@@ -127,7 +129,7 @@ export class OrdersService {
           return { createdOrder, payment };
         });
 
-      // ✅ 포인트 차감
+      // ✅ 포인트 차감 (동기)
       if (usePoint > 0) {
         await this.pointsService.spendPointsForOrder(
           userId,
@@ -135,6 +137,13 @@ export class OrdersService {
           usePoint,
         );
       }
+
+      // 🚀 주문 완료 이벤트 발행 (포인트 적립 및 알림용)
+      this.kafkaProducerService.emit(
+        'order.completed',
+        result.createdOrder.id,
+        result.createdOrder,
+      );
 
       // ✅ 재조회 (relations 포함)
       const fullOrder = await this.ordersRepository.findOrderById(

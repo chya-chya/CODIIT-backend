@@ -19,6 +19,7 @@ import { InquiryModule } from './inquiry/inquiry.module';
 import { ProductsModule } from './products/products.module';
 import { HealthModule } from './health/health.module';
 import { SearchModule } from './search/search.module';
+import { KafkaModule } from './common/kafka/kafka.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SearchModule } from './search/search.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    KafkaModule,
     ProductsModule,
     PrismaModule,
     CartsModule,

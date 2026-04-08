@@ -11,6 +11,7 @@ import { setupSentry } from './common/logger/sentry.config';
 import { SentryGlobalFilter } from './common/logger/sentry.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 // 콤마 구분 환경변수 파서
 function parseCommaSeparatedEnv(keys: string[]): string[] {
@@ -108,6 +109,22 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'error', 'warn', 'debug', 'verbose'],
   });
+
+  // Kafka Microservice 연결
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.KAFKA,
+    options: {
+      client: {
+        clientId: 'codiit-backend-consumer',
+        brokers: [process.env.KAFKA_BROKERS || 'localhost:9094'],
+      },
+      consumer: {
+        groupId: 'codiit-consumer-group',
+      },
+    },
+  });
+
+  await app.startAllMicroservices();
 
   // cors
   app.enableCors({

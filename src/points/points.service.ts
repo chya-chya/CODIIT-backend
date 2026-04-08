@@ -56,7 +56,6 @@ export class PointsService {
     await this.repo.prismaSvc.$transaction(async (tx) => {
       const order = await this.repo.getOrder(orderId, tx);
       if (!order) throw new BadRequestException('주문을 찾을 수 없습니다.');
-      if (order.status !== OrderStatus.COMPLETEDPAYMENT) return;
 
       if (
         await this.repo.hasPointLog(

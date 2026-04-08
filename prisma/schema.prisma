@@ -1,13 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider        = "prisma-client-js"
-  binaryTargets   = ["native", "linux-musl-arm64-openssl-3.0.x"]
   previewFeatures = ["tracing"]
+  binaryTargets   = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -15,52 +9,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/**
- * =========================
- * User
- * =========================
- */
+/// *
+///  * =========================
+///  * User
+///  * =========================
 model User {
-  id           String     @id @default(cuid())
-  name         String
-  email        String     @unique
-  passwordHash String
-  type         UserType   @default(BUYER)
-  image        String?
-  points       Int        @default(0) // 현재 보유 포인트
-  gradeLevel   GradeLevel @default(GREEN)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  deletedAt    DateTime?
-
-  sessions       Session[]
-  store          Store?          @relation("StoreOwner")
+  id             String             @id @default(cuid())
+  email          String             @unique
+  passwordHash   String
+  type           UserType           @default(BUYER)
+  image          String?
+  points         Int                @default(0)
+  gradeLevel     GradeLevel         @default(GREEN)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  deletedAt      DateTime?
+  name           String
+  answers        Answer[]           @relation("AnswerAuthor")
+  cart           Cart?
   favoriteStores FavoriteStore[]
+  inquiries      Inquiry[]          @relation("InquiryAuthor")
   notifications  Notification[]
-
-  cart        Cart?
-  orders      Order[]
-  reviews     Review[]
-  inquiries   Inquiry[]          @relation("InquiryAuthor")
-  answers     Answer[]           @relation("AnswerAuthor")
-  pointLedger PointTransaction[] // 포인트 사용/적립 내역             
+  orders         Order[]
+  pointLedger    PointTransaction[]
+  reviews        Review[]
+  sessions       Session[]
+  store          Store?             @relation("StoreOwner")
 
   @@index([type])
-}
-
-// 회원 유형 (권한 분기: SELLER만 스토어/상품 관리 가능)
-enum UserType {
-  BUYER
-  SELLER
-}
-
-// 등급 레벨 (Green(신규) < Orange(10만) < Red(30만) < Black(50만) < VIP(100만))
-enum GradeLevel {
-  GREEN
-  ORANGE
-  RED
-  BLACK
-  VIP
 }
 
 model Session {
@@ -69,51 +45,44 @@ model Session {
   refreshToken String   @unique
   expiresAt    DateTime
   createdAt    DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
 }
 
-// 포인트 트랜잭션 (사용/적립 기록)
 model PointTransaction {
-  id      String  @id @default(cuid())
-  userId  String
-  delta   Int
-  reason  String
-  orderId String?
-
+  id        String   @id @default(cuid())
+  userId    String
+  delta     Int
+  reason    String
+  orderId   String?
   createdAt DateTime @default(now())
-
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  order     Order?   @relation(fields: [orderId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
 }
 
-/**
- * =========================
- * Store
- * =========================
- */
+/// *
+///  * =========================
+///  * Store
+///  * =========================
 model Store {
-  id            String   @id @default(cuid())
+  id            String          @id @default(cuid())
   name          String
   address       String
   detailAddress String
   phoneNumber   String
   content       String
   image         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  sellerId String @unique
-  seller   User   @relation("StoreOwner", fields: [sellerId], references: [id], onDelete: Cascade)
-
-  favorites    FavoriteStore[]
-  Product      Product[]
-  Order        Order[]
-  Notification Notification[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  sellerId      String          @unique
+  favorites     FavoriteStore[]
+  Notification  Notification[]
+  Order         Order[]
+  Product       Product[]
+  seller        User            @relation("StoreOwner", fields: [sellerId], references: [id], onDelete: Cascade)
 }
 
 model FavoriteStore {
@@ -121,54 +90,49 @@ model FavoriteStore {
   storeId   String
   userId    String
   createdAt DateTime @default(now())
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, storeId])
   @@index([storeId])
   @@index([userId])
 }
 
-/**
- * =========================
- * Cart
- * =========================
- */
+/// *
+///  * =========================
+///  * Cart
+///  * =========================
 model Cart {
-  id        String   @id @default(cuid())
-  buyerId   String   @unique
-  quantity  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  buyer User       @relation(fields: [buyerId], references: [id], onDelete: Cascade)
-  items CartItem[]
+  id        String     @id @default(cuid())
+  buyerId   String     @unique
+  quantity  Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  buyer     User       @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  items     CartItem[]
 }
 
 model CartItem {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   cartId    String
   productId String
   sizeId    String
   quantity  Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  cart    Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
-  size    StockSize @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  cart      Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id])
+  size      StockSize @relation(fields: [sizeId], references: [id], onDelete: Cascade)
 
   @@unique([cartId, productId, sizeId])
 }
 
-/**
- * =========================
- * Product
- * =========================
- */
+/// *
+///  * =========================
+///  * Product
+///  * =========================
 model Product {
-  id                String    @id @default(cuid())
+  id                String         @id @default(cuid())
   storeId           String
   name              String
   content           String?
@@ -178,21 +142,20 @@ model Product {
   discountRate      Int?
   discountStartTime DateTime?
   discountEndTime   DateTime?
-  sales             Int       @default(0)
-  reviewCount       Int       @default(0)
-  avgRating         Float     @default(0)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  store        Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  categoryId   String
-  category     Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  stocks       Stock[]
-  reviews      Review[]
-  inquiries    Inquiry[]
-  cartItems    CartItem[]
-  orderItems   OrderItem[]
-  Notification Notification[]
+  sales             Int            @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  categoryId        String
+  avgRating         Float          @default(0)
+  reviewCount       Int            @default(0)
+  cartItems         CartItem[]
+  inquiries         Inquiry[]
+  Notification      Notification[]
+  orderItems        OrderItem[]
+  category          Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  store             Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  reviews           Review[]
+  stocks            Stock[]
 
   @@index([price])
   @@index([discountPrice])
@@ -215,6 +178,163 @@ model Category {
   products Product[]
 }
 
+model Stock {
+  id        String    @id @default(cuid())
+  productId String
+  sizeId    String
+  quantity  Int
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size      StockSize @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([sizeId, productId])
+}
+
+model StockSize {
+  id        String     @id @default(cuid())
+  name      String
+  cartItems CartItem[]
+  stocks    Stock[]
+
+  @@index([name])
+}
+
+/// *
+///  * =========================
+///  * Order
+///  * =========================
+model Order {
+  id             String             @id @default(cuid())
+  userId         String
+  storeId        String
+  totalPrice     Int
+  status         OrderStatus        @default(PROCESSING)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  address        String
+  recipientName  String
+  recipientPhone String
+  subtotal       Int
+  totalQuantity  Int
+  usePoint       Int                @default(0)
+  Notification   Notification[]
+  store          Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items          OrderItem[]
+  payments       Payment?
+  pointLogs      PointTransaction[]
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  orderId   String        @unique
+  price     Int
+  status    PaymentStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+/// *
+///  * =========================
+///  * Notification
+///  * =========================
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  inquiryId String?
+  orderId   String?
+  productId String?
+  readAt    DateTime?
+  storeId   String?
+  title     String?
+  updatedAt DateTime         @updatedAt
+  inquiry   Inquiry?         @relation(fields: [inquiryId], references: [id])
+  order     Order?           @relation(fields: [orderId], references: [id])
+  product   Product?         @relation(fields: [productId], references: [id])
+  store     Store?           @relation(fields: [storeId], references: [id])
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, productId, inquiryId, orderId, storeId])
+  @@index([userId, isRead, createdAt])
+  @@index([type])
+  @@index([productId])
+  @@index([inquiryId])
+  @@index([orderId])
+  @@index([storeId])
+}
+
+/// *
+///  * =========================
+///  * Review
+///  * =========================
+model Review {
+  id        String   @id @default(cuid())
+  content   String
+  rating    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model Inquiry {
+  id           String         @id @default(cuid())
+  title        String
+  content      String
+  status       AnswerStatus   @default(WaitingAnswer)
+  isSecret     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  userId       String
+  productId    String
+  reply        Answer?
+  product      Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user         User           @relation("InquiryAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  Notification Notification[]
+}
+
+model Answer {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  inquiryId String   @unique
+  inquiry   Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  user      User     @relation("AnswerAuthor", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum UserType {
+  BUYER
+  SELLER
+}
+
+enum GradeLevel {
+  GREEN
+  ORANGE
+  RED
+  BLACK
+  VIP
+}
+
 enum CategoryType {
   TOP
   BOTTOM
@@ -225,68 +345,6 @@ enum CategoryType {
   ACC
 }
 
-model Stock {
-  id        String    @id @default(cuid())
-  productId String
-  sizeId    String
-  size      StockSize @relation(fields: [sizeId], references: [id], onDelete: Cascade)
-  quantity  Int
-
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId])
-  @@index([sizeId, productId])
-}
-
-model StockSize {
-  id   String @id @default(cuid())
-  name String
-
-  stocks    Stock[]
-  cartItems CartItem[]
-
-  @@index([name])
-}
-
-/**
- * =========================
- * Order
- * =========================
- */
-model Order {
-  id             String @id @default(cuid())
-  userId         String
-  storeId        String
-  recipientName  String
-  recipientPhone String
-  address        String
-  subtotal       Int
-  totalQuantity  Int
-  usePoint       Int    @default(0)
-  totalPrice     Int
-
-  status    OrderStatus @default(PROCESSING)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  store        Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  items        OrderItem[]
-  pointLogs    PointTransaction[]
-  payments     Payment?
-  Notification Notification[]
-}
-
-model Payment {
-  id        String        @id @default(cuid())
-  orderId   String        @unique
-  price     Int
-  status    PaymentStatus @default(PENDING)
-  createdAt DateTime      @default(now())
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-}
-
 enum PaymentStatus {
   PENDING
   COMPLETED
@@ -294,59 +352,11 @@ enum PaymentStatus {
   REFUNDED
 }
 
-model OrderItem {
-  id        String @id @default(cuid())
-  orderId   String
-  productId String
-  quantity  Int
-  price     Int // 주문 당시 가격 (할인 반영 가능)
-
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
-}
-
 enum OrderStatus {
   COMPLETEDPAYMENT
   CANCELED
   PROCESSING
   SHIPPED
-}
-
-/**
- * =========================
- * Notification
- * =========================
- */
-model Notification {
-  id      String           @id @default(cuid())
-  userId  String
-  type    NotificationType
-  title   String?
-  message String
-
-  productId String?
-  inquiryId String?
-  orderId   String?
-  storeId   String?
-
-  isRead    Boolean   @default(false)
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  inquiry Inquiry? @relation(fields: [inquiryId], references: [id], onDelete: SetNull)
-  order   Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  store   Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
-
-  @@unique([userId, type, productId, inquiryId, orderId, storeId])
-  @@index([userId, isRead, createdAt])
-  @@index([type])
-  @@index([productId])
-  @@index([inquiryId])
-  @@index([orderId])
-  @@index([storeId])
 }
 
 enum NotificationType {
@@ -358,62 +368,7 @@ enum NotificationType {
   SYSTEM
 }
 
-/**
- * =========================
- * Review
- * =========================
- */
-model Review {
-  id        String   @id @default(cuid())
-  content   String
-  rating    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId])
-}
-
-/**
- * =========================
- * Inquiry & Answer
- * =========================
- */
-
 enum AnswerStatus {
   WaitingAnswer
   CompletedAnswer
-}
-
-model Inquiry {
-  id        String       @id @default(cuid())
-  title     String
-  content   String
-  status    AnswerStatus @default(WaitingAnswer)
-  isSecret  Boolean      @default(false)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-
-  userId       String
-  user         User           @relation("InquiryAuthor", fields: [userId], references: [id], onDelete: Cascade)
-  productId    String
-  product      Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  reply        Answer?
-  Notification Notification[]
-}
-
-model Answer {
-  id        String   @id @default(cuid())
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  userId    String
-  user      User    @relation("AnswerAuthor", fields: [userId], references: [id], onDelete: Cascade)
-  inquiryId String  @unique
-  inquiry   Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
 }

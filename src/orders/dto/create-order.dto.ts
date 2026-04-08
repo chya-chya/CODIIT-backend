@@ -17,10 +17,9 @@ export class OrderItemRequestDto {
   @IsString()
   productId: string;
 
-  @ApiProperty({ example: 3, description: '사이즈 ID' })
-  @IsInt()
-  @Transform(({ value }) => Number(value))
-  sizeId: number;
+  @ApiProperty({ example: 'size_xs', description: '사이즈 ID' })
+  @IsString()
+  sizeId: string;
 
   @ApiProperty({ example: 1, description: '수량 (1 이상)' })
   @IsInt()

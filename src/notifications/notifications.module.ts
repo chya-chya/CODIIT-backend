@@ -5,10 +5,12 @@ import { NotificationsRepository } from './notifications.repository';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { TICKER$ } from './ticker.token';
 import { interval, shareReplay } from 'rxjs';
+import { KafkaModule } from '../common/kafka/kafka.module';
+import { NotificationsConsumer } from './notifications.consumer';
 
 @Module({
-  imports: [PrismaModule],
-  controllers: [NotificationsController],
+  imports: [PrismaModule, KafkaModule],
+  controllers: [NotificationsController, NotificationsConsumer],
   providers: [
     NotificationsService,
     NotificationsRepository,

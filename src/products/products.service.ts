@@ -96,13 +96,13 @@ export type InquiryResponse = {
   totalCount: number;
 };
 
-import { SearchService } from '../search/search.service';
+import { KafkaProducerService } from '../common/kafka/kafka.service';
 
 @Injectable()
 export class ProductsService {
   constructor(
     private readonly productsRepository: ProductsRepository,
-    private readonly searchService: SearchService,
+    private readonly kafkaProducerService: KafkaProducerService,
   ) {}
 
   /** 🔧 stocks 변환 (프론트 숫자 사이즈 대응 버전) */
@@ -229,9 +229,11 @@ export class ProductsService {
 
       const fullProduct = await this.findOne(product.id);
       
-      // 🚀 Elasticsearch 동기화 (Background)
-      this.searchService.indexProduct(fullProduct).catch(err => 
-        console.error('ES Sync Error on Create:', err)
+      // 🚀 Kafka 이벤트 발행 (Elasticsearch 동기화용)
+      this.kafkaProducerService.emit(
+        'product.created',
+        product.id,
+        fullProduct,
       );
 
       return fullProduct;
@@ -444,9 +446,11 @@ export class ProductsService {
 
       const updatedProduct = await this.findOne(productId);
 
-      // 🚀 Elasticsearch 동기화 (Background)
-      this.searchService.indexProduct(updatedProduct).catch(err => 
-        console.error('ES Sync Error on Update:', err)
+      // 🚀 Kafka 이벤트 발행 (Elasticsearch 동기화용)
+      this.kafkaProducerService.emit(
+        'product.updated',
+        productId,
+        updatedProduct,
       );
 
       return updatedProduct;
@@ -478,10 +482,10 @@ export class ProductsService {
 
     await this.productsRepository.removeWithRelations(productId);
 
-    // 🚀 Elasticsearch 동기화 (Background)
-    this.searchService.removeProduct(productId).catch(err => 
-      console.error('ES Sync Error on Remove:', err)
-    );
+    // 🚀 Kafka 이벤트 발행 (Elasticsearch 동기화용)
+    this.kafkaProducerService.emit('product.deleted', productId, {
+      id: productId,
+    });
   }
 
   /** ✅ 상품 문의 등록 */

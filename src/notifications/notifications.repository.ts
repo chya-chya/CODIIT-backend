@@ -48,4 +48,21 @@ export class NotificationsRepository {
       data: { isRead: true, readAt: new Date() },
     });
   }
+
+  // 알림 생성
+  async create(data: {
+    userId: string;
+    type: NotificationType;
+    message: string;
+    orderId?: string;
+  }) {
+    return this.prisma.notification.create({
+      data: {
+        userId: data.userId,
+        type: data.type,
+        message: data.message,
+        orderId: data.orderId,
+      },
+    });
+  }
 }
